@@ -25,7 +25,8 @@ async def query_stream(
             yield f"event: start\ndata: {{\"message\": \"Processing query...\"}}\n\n"
             await asyncio.sleep(0.1)
             
-            service = QueryService(db, session_id=request.session_id)
+            service = QueryService(db, session_id=request.session_id or "default")
+
             
             # Send status event
             yield f"event: status\ndata: {{\"message\": \"Generating SQL...\"}}\n\n"

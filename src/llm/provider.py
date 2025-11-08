@@ -1,36 +1,84 @@
-from emergentintegrations.llm.chat import LlmChat, UserMessage
+# src/llm/provider.py
+import asyncio
+import os
+from typing import Optional, AsyncGenerator
 from src.core.config import settings
 from src.core.logging import get_logger
-from typing import Optional
+from langchain_openai import ChatOpenAI
+from langchain_core.messages import HumanMessage, SystemMessage, AIMessage
 
 logger = get_logger(__name__)
 
+# ✅ Ensure API key in environment for LangChain
+os.environ["OPENAI_API_KEY"] = settings.OPENAI_API_KEY or ""
+
 class LLMProvider:
-    def __init__(self, session_id: str = "sql-agent"):
-        self.session_id = session_id
-        api_key = settings.OPENAI_API_KEY or settings.EMERGENT_LLM_KEY
-        
-        if not api_key:
-            raise ValueError("No API key found. Set OPENAI_API_KEY or use EMERGENT_LLM_KEY")
-        
-        self.chat = LlmChat(
-            api_key=api_key,
-            session_id=session_id,
-            system_message="You are a SQL expert assistant. Generate safe, efficient SQL queries."
+    """LangChain-compatible OpenAI provider with streaming support (Pylance-safe)."""
+
+    def __init__(self, session_id: str = "sql-agent", system_message: Optional[str] = None):
+        self.session_id = session_id or "sql-agent"
+        self.system_message = (
+            system_message
+            or "You are a SQL expert assistant. Generate safe, efficient SQL queries."
         )
-        self.chat.with_model("openai", settings.DEFAULT_MODEL)
-        logger.info(f"LLM Provider initialized with model: {settings.DEFAULT_MODEL}")
-    
+
+        if not settings.OPENAI_API_KEY:
+            raise ValueError("No OpenAI API key found. Please set OPENAI_API_KEY in .env")
+
+        # ✅ Use new LangChain syntax
+        self.chat = ChatOpenAI(
+            model=settings.DEFAULT_MODEL,
+            temperature=0.0,
+            streaming=True,  # enable streaming
+            model_kwargs={"max_tokens": 1024}  # modern way to set token limits
+        )
+
+        logger.info(f"LLMProvider initialized with streaming using model: {settings.DEFAULT_MODEL}")
+
     async def generate_response(self, prompt: str) -> str:
-        """Generate a response from the LLM"""
+        """Generate a complete response (non-streaming call)."""
         try:
-            message = UserMessage(text=prompt)
-            response = await self.chat.send_message(message)
-            return response
+            messages = [
+                SystemMessage(content=self.system_message),
+                HumanMessage(content=prompt)
+            ]
+
+            response = await self.chat.ainvoke(messages)
+
+            # Handle both AIMessage and dict-based responses
+            if isinstance(response, AIMessage) and isinstance(response.content, str):
+                return response.content.strip()
+            elif hasattr(response, "content"):
+                return str(response.content).strip()
+            else:
+                return str(response).strip()
+
         except Exception as e:
-            logger.error(f"LLM generation error: {e}")
+            logger.error(f"LangChain LLM generation failed: {e}")
             raise
-    
-    def with_new_session(self, session_id: str) -> 'LLMProvider':
-        """Create a new provider instance with different session"""
-        return LLMProvider(session_id=session_id)
+
+    async def stream_response(self, prompt: str) -> AsyncGenerator[str, None]:
+        """Stream responses token-by-token asynchronously."""
+        try:
+            messages = [
+                SystemMessage(content=self.system_message),
+                HumanMessage(content=prompt)
+            ]
+
+            async for chunk in self.chat.astream(messages):
+                # Each chunk may be AIMessageChunk or contain content pieces
+                content_piece = getattr(chunk, "content", None)
+
+                if isinstance(content_piece, str):
+                    yield content_piece
+                elif isinstance(content_piece, list):
+                    # Sometimes chunk.content is a list of dicts (tool messages etc.)
+                    for part in content_piece:
+                        if isinstance(part, str):
+                            yield part
+                        elif isinstance(part, dict) and "text" in part:
+                            yield part["text"]
+
+        except Exception as e:
+            logger.error(f"Streaming LLM error: {e}")
+            yield f"[STREAM ERROR] {str(e)}"

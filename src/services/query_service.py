@@ -22,22 +22,24 @@ class QueryService:
     
     async def process_query(self, user_query: str) -> Dict:
         """Process natural language query and return results with summary"""
-        
+
         start_time = time.time()
-        
+        sql = ""           # ensure variable exists for exception handling
+        is_valid = False   # ensure defined for exception path
+
         try:
             # Save user message to chat history
             await self._save_chat_message("user", user_query)
-            
+
             # Get schema information
             schema_info = await self.schema_inspector.get_schema_description()
-            
+
             # Generate SQL
             sql = await self.sql_agent.generate_sql(user_query, schema_info)
-            
+
             # Validate and fix SQL
             is_valid, fixed_sql, error = self.sql_agent.validate_and_fix_sql(sql)
-            
+
             if not is_valid:
                 await self._log_query(
                     user_query=user_query,
@@ -53,27 +55,28 @@ class QueryService:
                     "rows": [],
                     "summary": ""
                 }
-            
+
             # Execute SQL
             result = await self.session.execute(text(fixed_sql))
             rows = result.fetchall()
             columns = list(result.keys())
-            
-            # Convert rows to serializable format
+
+            # Convert rows to serializable format and to tuples for summarizer
             rows_list = [list(row) for row in rows]
-            
-            # Generate summary
+            rows_tuples = [tuple(row) for row in rows]
+
+            # Generate summary (pass tuples so summarizer typing matches)
             summary = await self.summarizer.summarize(
                 user_query=user_query,
                 sql=fixed_sql,
                 columns=columns,
-                rows=rows,
+                rows=rows_tuples,
                 total_rows=len(rows_list)
             )
-            
+
             # Save assistant response
             await self._save_chat_message("assistant", summary)
-            
+
             # Log query
             execution_time_ms = int((time.time() - start_time) * 1000)
             await self._log_query(
@@ -84,7 +87,7 @@ class QueryService:
                 row_count=len(rows_list),
                 execution_time_ms=execution_time_ms
             )
-            
+
             return {
                 "success": True,
                 "sql": fixed_sql,
@@ -94,24 +97,25 @@ class QueryService:
                 "execution_time_ms": execution_time_ms,
                 "row_count": len(rows_list)
             }
-            
+
         except Exception as e:
             logger.error(f"Query processing error: {e}")
             await self._log_query(
                 user_query=user_query,
-                generated_sql=sql if 'sql' in locals() else None,
-                validation_status="valid" if 'is_valid' in locals() and is_valid else "error",
+                generated_sql=sql if sql else None,
+                validation_status="valid" if is_valid else "error",
                 execution_status="failed",
                 error_message=str(e)
             )
             return {
                 "success": False,
                 "error": str(e),
-                "sql": sql if 'sql' in locals() else "",
+                "sql": sql if sql else "",
                 "columns": [],
                 "rows": [],
                 "summary": ""
             }
+
     
     async def get_chat_history(self, limit: int = 50) -> List[Dict]:
         """Retrieve chat history for the session"""

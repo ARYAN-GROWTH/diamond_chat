@@ -27,7 +27,8 @@ async def query_endpoint(
         )
     
     try:
-        service = QueryService(db, session_id=request.session_id)
+        service = QueryService(db, session_id=request.session_id or "default")
+
         result = await service.process_query(request.query)
         return result
     except Exception as e:
@@ -44,7 +45,7 @@ async def get_schema(db: AsyncSession = Depends(get_db)):
         
         return SchemaResponse(
             table_name=settings.TABLE_NAME,
-            schema=settings.SCHEMA,
+            db_schema=settings.SCHEMA,
             columns=columns,
             sample_rows=samples
         )

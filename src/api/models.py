@@ -18,7 +18,7 @@ class QueryResponse(BaseModel):
 
 class SchemaResponse(BaseModel):
     table_name: str
-    schema: str
+    db_schema: str
     columns: dict
     sample_rows: List[dict]
 
