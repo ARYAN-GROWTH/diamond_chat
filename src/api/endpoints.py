@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 from src.db.connection import get_db
 from src.db.schema_inspect import SchemaInspector
@@ -13,27 +13,34 @@ from src.core.logging import get_logger
 logger = get_logger(__name__)
 router = APIRouter(prefix="/api/v1", tags=["SQL Agent"])
 
+
 @router.post("/query", response_model=QueryResponse)
 async def query_endpoint(
     request: QueryRequest,
+    http_request: Request,
     db: AsyncSession = Depends(get_db)
 ):
     """Process natural language query and return SQL results with summary"""
-    
+
     if request.stream:
         raise HTTPException(
             status_code=400,
             detail="For streaming, use /api/v1/query/stream endpoint"
         )
-    
-    try:
-        service = QueryService(db, session_id=request.session_id or "default")
 
+    try:
+        # 🧩 Use session_id from cookie (fallback to request or default)
+        session_id = getattr(http_request.state, "session_id", None) or request.session_id or "default"
+
+        service = QueryService(db, session_id=session_id)
         result = await service.process_query(request.query)
+        result["session_id"] = session_id  # include in response
         return result
+
     except Exception as e:
         logger.error(f"Query endpoint error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
 
 @router.get("/schema", response_model=SchemaResponse)
 async def get_schema(db: AsyncSession = Depends(get_db)):
@@ -42,7 +49,7 @@ async def get_schema(db: AsyncSession = Depends(get_db)):
         inspector = SchemaInspector(db)
         columns = await inspector.get_table_schema()
         samples = await inspector.get_sample_rows(limit=5)
-        
+
         return SchemaResponse(
             table_name=settings.TABLE_NAME,
             db_schema=settings.SCHEMA,
@@ -53,6 +60,7 @@ async def get_schema(db: AsyncSession = Depends(get_db)):
         logger.error(f"Schema endpoint error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
+
 @router.get("/health", response_model=HealthResponse)
 async def health_check(db: AsyncSession = Depends(get_db)):
     """Health check endpoint"""
@@ -60,7 +68,7 @@ async def health_check(db: AsyncSession = Depends(get_db)):
         # Test database connection
         from sqlalchemy import text
         await db.execute(text("SELECT 1"))
-        
+
         return HealthResponse(
             status="ok",
             database=settings.DATABASE_URL.split('@')[1] if '@' in settings.DATABASE_URL else "configured",
@@ -69,6 +77,7 @@ async def health_check(db: AsyncSession = Depends(get_db)):
     except Exception as e:
         logger.error(f"Health check failed: {e}")
         raise HTTPException(status_code=503, detail=f"Database unhealthy: {str(e)}")
+
 
 @router.get("/history/{session_id}", response_model=ChatHistoryResponse)
 async def get_history(
@@ -84,6 +93,7 @@ async def get_history(
     except Exception as e:
         logger.error(f"History endpoint error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
 
 @router.delete("/history/{session_id}")
 async def clear_history(
