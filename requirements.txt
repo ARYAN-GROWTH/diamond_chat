@@ -20,7 +20,7 @@ fastapi
 fastuuid
 filelock
 flake8
-frozenlist
+# frozenlist
 fsspec
 google-ai-generativelanguage
 google-api-core

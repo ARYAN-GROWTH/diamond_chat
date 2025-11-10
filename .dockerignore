@@ -1,0 +1,60 @@
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Virtual environments
+env/
+venv/
+.venv/
+
+# Local environment files
+.env
+*.env
+
+# Build & dist artifacts
+build/
+dist/
+*.egg-info/
+.wheels/
+.wheelhouse/
+
+# Docker leftovers
+Dockerfile*
+docker-compose.yml
+
+# IDE & editor
+.vscode/
+.idea/
+*.swp
+
+# Git
+.git
+.gitignore
+.gitattributes
+
+# Logs
+*.log
+
+# OS-specific
+.DS_Store
+Thumbs.db
+
+# Jupyter / ipynb
+.ipynb_checkpoints/
+
+# Node artifacts (if combined frontend)
+node_modules/
+npm-debug.log
+yarn-error.log
+
+# Sensitive / config files
+*.pem
+*.key
+*.crt
+
+# Anything not needed in container
+test/
+tests/
+docs/
