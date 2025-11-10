@@ -4,7 +4,8 @@ from typing import List, Any, Optional
 class QueryRequest(BaseModel):
     query: str = Field(..., description="Natural language query")
     session_id: Optional[str] = Field("default", description="Session ID for conversation context")
-    stream: bool = Field(False, description="Enable streaming response")
+    stream: bool = Field(True, description="Enable streaming response")
+    token: Optional[str] = None 
 
 class QueryResponse(BaseModel):
     success: bool

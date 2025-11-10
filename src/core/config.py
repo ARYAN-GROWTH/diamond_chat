@@ -24,6 +24,12 @@ class Settings(BaseSettings):
     # Query Settings
     DEFAULT_QUERY_LIMIT: int = int(os.getenv('DEFAULT_QUERY_LIMIT', '200'))
     MAX_QUERY_LIMIT: int = int(os.getenv('MAX_QUERY_LIMIT', '1000'))
+
+    JWT_SECRET: str = os.getenv("JWT_SECRET", "supersecret")
+    JWT_ALGORITHM: str = os.getenv("JWT_ALGORITHM", "HS256")
+    JWT_EXPIRE_MINUTES: int = int(os.getenv("JWT_EXPIRE_MINUTES", "10080"))
+    
+
     
     # CORS
     CORS_ORIGINS: str = os.getenv('CORS_ORIGINS', '*')

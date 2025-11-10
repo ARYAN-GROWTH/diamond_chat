@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-"""Initialize database tables for chat history and query logs"""
+"""Initialize database tables for users, chat history, query logs, and memory"""
 
 import asyncio
 from sqlalchemy import text
@@ -9,6 +9,26 @@ from src.core.logging import get_logger
 
 logger = get_logger(__name__)
 
+# ---------------------------------------------
+# USER TABLE
+# ---------------------------------------------
+CREATE_USERS_TABLE = f"""
+CREATE TABLE IF NOT EXISTS {settings.SCHEMA}.users (
+    id SERIAL PRIMARY KEY,
+    external_id VARCHAR(255) UNIQUE,
+    display_name VARCHAR(255) NOT NULL,
+    email VARCHAR(255) UNIQUE NOT NULL,
+    password VARCHAR(255) NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_users_email 
+    ON {settings.SCHEMA}.users(email);
+"""
+
+# ---------------------------------------------
+# CHAT HISTORY TABLE
+# ---------------------------------------------
 CREATE_CHAT_HISTORY_TABLE = f"""
 CREATE TABLE IF NOT EXISTS {settings.SCHEMA}.chat_history (
     id SERIAL PRIMARY KEY,
@@ -26,6 +46,9 @@ CREATE INDEX IF NOT EXISTS idx_chat_history_created
     ON {settings.SCHEMA}.chat_history(created_at DESC);
 """
 
+# ---------------------------------------------
+# QUERY LOGS TABLE
+# ---------------------------------------------
 CREATE_QUERY_LOGS_TABLE = f"""
 CREATE TABLE IF NOT EXISTS {settings.SCHEMA}.query_logs (
     id SERIAL PRIMARY KEY,
@@ -47,32 +70,64 @@ CREATE INDEX IF NOT EXISTS idx_query_logs_created
     ON {settings.SCHEMA}.query_logs(created_at DESC);
 """
 
+# ---------------------------------------------
+# USER MEMORY TABLE (Long-Term Memory)
+# ---------------------------------------------
+CREATE_USER_MEMORY_TABLE = f"""
+CREATE TABLE IF NOT EXISTS {settings.SCHEMA}.user_memory (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER REFERENCES {settings.SCHEMA}.users(id) ON DELETE CASCADE UNIQUE,
+    memory_summary TEXT,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+"""
+
+# ---------------------------------------------
+# SESSION SUMMARIES TABLE (Mid-Term Memory)
+# ---------------------------------------------
+CREATE_SESSION_SUMMARIES_TABLE = f"""
+CREATE TABLE IF NOT EXISTS {settings.SCHEMA}.session_summaries (
+    id SERIAL PRIMARY KEY,
+    session_id VARCHAR(255) NOT NULL,
+    user_id INTEGER REFERENCES {settings.SCHEMA}.users(id) ON DELETE CASCADE,
+    summary TEXT,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE (session_id, user_id)
+);
+"""
+
+# ---------------------------------------------
+# DATABASE INITIALIZER
+# ---------------------------------------------
 async def init_database():
-    """Create all required tables"""
+    """Create all required tables (users, memory, chat, logs)"""
     try:
         async with engine.begin() as conn:
-            logger.info("Creating chat_history table...")
-            
-            # Execute statements separately
-            statements = CREATE_CHAT_HISTORY_TABLE.strip().split(';')
-            for stmt in statements:
-                if stmt.strip():
-                    await conn.execute(text(stmt))
-            logger.info("✓ chat_history table created")
-            
-            logger.info("Creating query_logs table...")
-            statements = CREATE_QUERY_LOGS_TABLE.strip().split(';')
-            for stmt in statements:
-                if stmt.strip():
-                    await conn.execute(text(stmt))
-            logger.info("✓ query_logs table created")
-            
-            logger.info("Database initialization complete!")
+            logger.info("🧩 Creating tables...")
+
+            table_statements = [
+                ("users", CREATE_USERS_TABLE),
+                ("chat_history", CREATE_CHAT_HISTORY_TABLE),
+                ("query_logs", CREATE_QUERY_LOGS_TABLE),
+                ("user_memory", CREATE_USER_MEMORY_TABLE),
+                ("session_summaries", CREATE_SESSION_SUMMARIES_TABLE),
+            ]
+
+            for name, sql_block in table_statements:
+                logger.info(f"Creating {name} table...")
+                for stmt in sql_block.strip().split(';'):
+                    if stmt.strip():
+                        await conn.execute(text(stmt))
+                logger.info(f"✓ {name} table ready")
+
+            logger.info("✅ Database initialization complete!")
+
     except Exception as e:
-        logger.error(f"Database initialization failed: {e}")
+        logger.error(f"❌ Database initialization failed: {e}")
         raise
     finally:
         await engine.dispose()
+
 
 if __name__ == "__main__":
     asyncio.run(init_database())
