@@ -1,4 +1,4 @@
-# src/api/deps.py
+
 from fastapi import Depends, HTTPException, Security, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 import jwt
@@ -7,13 +7,13 @@ from src.core.config import settings
 
 security = HTTPBearer(auto_error=False)
 
-# ✅ Universal JWT dependency (used in any endpoint)
+
 async def get_current_user(
     credentials: HTTPAuthorizationCredentials = Security(security)
 ) -> dict:
     """Decode JWT and return user info or guest identity if not authenticated."""
 
-    # 🧩 Case 1: No token → Guest mode
+    #  Case 1: No token → Guest mode
     if not credentials:
         return {
             "user_id": None,
@@ -26,7 +26,7 @@ async def get_current_user(
     token = credentials.credentials
 
     try:
-        # Decode JWT
+      
         payload = jwt.decode(token, settings.JWT_SECRET, algorithms=[settings.JWT_ALGORITHM])
 
         # Expiry validation
@@ -48,7 +48,7 @@ async def get_current_user(
         raise HTTPException(status_code=401, detail="Invalid token")
 
 
-# ✅ Optional: Role-based access control (for admins later)
+
 async def require_role(required_role: str, current_user: dict = Depends(get_current_user)):
     """Ensure user has the required role (e.g., admin)."""
     if current_user.get("role") != required_role:

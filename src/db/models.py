@@ -2,9 +2,7 @@ from sqlalchemy import Column, Integer, String, Text, DateTime, JSON, ForeignKey
 from sqlalchemy.sql import func
 from src.db.connection import Base
 
-# ============================================================
-# 👤 USER TABLE — stores login details and profile
-# ============================================================
+
 class User(Base):
     """User account model for authentication"""
     __tablename__ = 'users'
@@ -18,9 +16,6 @@ class User(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
 
-# ============================================================
-# 💬 CHAT HISTORY TABLE — per-session conversation logs
-# ============================================================
 class ChatHistory(Base):
     """Stores conversation messages for each session"""
     __tablename__ = 'chat_history'
@@ -34,9 +29,7 @@ class ChatHistory(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
 
-# ============================================================
-# 🧾 QUERY LOGS TABLE — audit trail for all executed queries
-# ============================================================
+
 class QueryLog(Base):
     """Log of natural language → SQL conversions and execution"""
     __tablename__ = 'query_logs'
@@ -54,9 +47,7 @@ class QueryLog(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
 
-# ============================================================
-# 🧠 USER MEMORY TABLE — long-term facts about the user
-# ============================================================
+
 class UserMemory(Base):
     """Stores persistent memory per user (long-term memory)"""
     __tablename__ = 'user_memory'
@@ -67,10 +58,6 @@ class UserMemory(Base):
     memory_summary = Column(Text, nullable=True)
     updated_at = Column(DateTime(timezone=True), server_default=func.now())
 
-
-# ============================================================
-# 🗂️ SESSION SUMMARIES TABLE — short/mid-term session memory
-# ============================================================
 class SessionSummary(Base):
     """Summaries of conversations per session per user"""
     __tablename__ = 'session_summaries'

@@ -21,9 +21,7 @@ class QueryService:
         self.summarizer = ResultSummarizer(session_id=f"{session_id}_summarizer")
         self.schema_inspector = SchemaInspector(session)
 
-    # ==============================================================
-    # 🧠 Process Query with Contextual Memory
-    # ==============================================================
+ 
     async def process_query(self, user_query: str) -> Dict:
         start_time = time.time()
         sql = ""
@@ -33,19 +31,19 @@ class QueryService:
             # 🗣 Save user message
             await self._save_chat_message("user", user_query)
 
-            # 📄 Schema info
+            # Schema info
             schema_info = await self.schema_inspector.get_schema_description()
 
-            # 💬 History context
+            #  History context
             full_history = await self._get_full_chat_history()
             old_msgs, recent_msgs = (full_history[:-5], full_history[-5:]) if len(full_history) > 8 else ([], full_history)
 
-            # 🧠 Load stored memory
+            # Load stored memory
             session_summary = await self._get_session_summary()
             user_memory = await self._get_user_memory()
             old_summary = await self._summarize_old_history(old_msgs)
 
-            # 🔍 Build context
+            # Build context
             context = ""
             if user_memory:
                 context += f"User Memory (long-term):\n{user_memory}\n\n"
@@ -56,7 +54,7 @@ class QueryService:
             if recent_msgs:
                 context += "Recent Conversation:\n" + "\n".join([f"{m['role'].capitalize()}: {m['content']}" for m in recent_msgs])
 
-            # 💡 Build LLM prompt
+            # Build LLM prompt
             full_prompt = f"""
 You are an intelligent SQL assistant that can recall user context and generate accurate PostgreSQL queries.
 
@@ -69,7 +67,7 @@ User's Question:
 {user_query}
 """
 
-            # 🧩 Generate SQL
+            
             sql = await self.sql_agent.generate_sql(full_prompt, schema_info)
             is_valid, fixed_sql, error = self.sql_agent.validate_and_fix_sql(sql)
 
@@ -77,14 +75,14 @@ User's Question:
                 await self._log_query(user_query, sql, "invalid", "failed", error)
                 return {"success": False, "error": error, "sql": sql, "columns": [], "rows": [], "summary": ""}
 
-            # ⚙️ Execute SQL
+        
             result = await self.session.execute(text(fixed_sql))
             rows = result.fetchall()
             columns = list(result.keys())
             rows_list = [list(r) for r in rows]
             rows_tuples = [tuple(r) for r in rows]
 
-            # 📋 Summarize result
+            
             summary_text = await self.summarizer.summarize(
                 user_query=user_query,
                 sql=fixed_sql,
@@ -107,7 +105,7 @@ User's Question:
             exec_time = int((time.time() - start_time) * 1000)
             await self._log_query(user_query, fixed_sql, "valid", "success", None, len(rows_list), exec_time)
 
-            logger.info(f"✅ Query executed successfully | rows={len(rows_list)} | time={exec_time}ms")
+            logger.info(f" Query executed successfully | rows={len(rows_list)} | time={exec_time}ms")
             return {
                 "success": True,
                 "sql": fixed_sql,
@@ -119,13 +117,10 @@ User's Question:
             }
 
         except Exception as e:
-            logger.error(f"❌ Query processing error: {e}")
+            logger.error(f" Query processing error: {e}")
             await self._log_query(user_query, sql or "", "error", "failed", str(e))
             return {"success": False, "error": str(e), "sql": sql or "", "columns": [], "rows": [], "summary": ""}
 
-    # ==============================================================
-    # 💬 Chat History
-    # ==============================================================
     async def _get_full_chat_history(self) -> List[Dict]:
         result = await self.session.execute(
             text("SELECT role, content, created_at FROM public.chat_history WHERE session_id = :sid ORDER BY created_at ASC"),
@@ -154,9 +149,7 @@ User's Question:
         await self.session.commit()
         logger.info(f"🧹 Cleared chat history for session={self.session_id}")
 
-    # ==============================================================
-    # 🧠 Memory System (Session + User)
-    # ==============================================================
+ 
     async def _get_session_summary(self) -> Optional[str]:
         if not self.user_id:
             return None
@@ -169,7 +162,7 @@ User's Question:
 
     async def _update_session_summary(self, new_summary: str):
         if not self.user_id:
-            logger.warning("⚠️ Missing user_id — skipping session summary update")
+            logger.warning(" Missing user_id — skipping session summary update")
             logger.debug("Guest mode active — skipping user memory update")
 
             return
@@ -184,7 +177,7 @@ User's Question:
             {"sid": self.session_id, "uid": self.user_id, "sum": new_summary},
         )
         await self.session.commit()
-        logger.info(f"✅ Session summary updated for user_id={self.user_id}")
+        logger.info(f" Session summary updated for user_id={self.user_id}")
 
     async def _get_user_memory(self) -> Optional[str]:
         if not self.user_id:
@@ -197,7 +190,7 @@ User's Question:
 
     async def _update_user_memory(self, latest_summary: str):
         if not self.user_id:
-            logger.warning("⚠️ Missing user_id — skipping user memory update")
+            logger.warning(" Missing user_id — skipping user memory update")
             return
         latest_summary = latest_summary or "No summary generated."
         prev = await self._get_user_memory()
@@ -212,11 +205,9 @@ User's Question:
             {"uid": self.user_id, "mem": combined},
         )
         await self.session.commit()
-        logger.info(f"✅ Long-term memory updated for user_id={self.user_id}")
+        logger.info(f" Long-term memory updated for user_id={self.user_id}")
 
-    # ==============================================================
-    # 🧾 Summarization
-    # ==============================================================
+
     async def _summarize_old_history(self, messages: List[Dict]) -> str:
         if not messages:
             return ""
@@ -229,9 +220,7 @@ User's Question:
             logger.error(f"Summarization failed: {e}")
             return ""
 
-    # ==============================================================
-    # 🧾 Logging
-    # ==============================================================
+ 
     async def _log_query(
         self, user_query, generated_sql=None, validation_status=None,
         execution_status=None, error_message=None, row_count=None, execution_time_ms=None

@@ -1,4 +1,4 @@
-# src/api/auth.py
+
 from fastapi import APIRouter, HTTPException, Depends, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import text
@@ -15,14 +15,11 @@ logger = get_logger(__name__)
 router = APIRouter(prefix="/api/v1/auth", tags=["Authentication"])
 
 
-# ============================================================
-# 🧩 MODELS
-# ============================================================
 class SignupRequest(BaseModel):
     username: str
     email: EmailStr
     password: str
-    role: str = "user"  # optional role field (default = user)
+    role: str = "user"  
 
 
 class LoginRequest(BaseModel):
@@ -35,9 +32,7 @@ class TokenResponse(BaseModel):
     token_type: str = "bearer"
 
 
-# ============================================================
-# 🔐 JWT HELPERS
-# ============================================================
+
 def create_access_token(data: dict, expires_delta: timedelta | None = None) -> str:
     """Generate JWT access token with expiry."""
     expire = datetime.utcnow() + (expires_delta or timedelta(minutes=getattr(settings, "JWT_EXPIRE_MINUTES", 60)))
@@ -68,9 +63,7 @@ async def get_user_by_email(db: AsyncSession, email: str):
     return dict(row._mapping) if row else None
 
 
-# ============================================================
-# 🧾 SIGNUP
-# ============================================================
+
 @router.post("/signup")
 async def signup(request: SignupRequest, db: AsyncSession = Depends(get_db)):
     """Register a new user account."""
@@ -95,13 +88,10 @@ async def signup(request: SignupRequest, db: AsyncSession = Depends(get_db)):
     )
     await db.commit()
 
-    logger.info(f"🆕 New user registered: {request.email}")
+    logger.info(f" New user registered: {request.email}")
     return {"message": "Signup successful"}
 
 
-# ============================================================
-# 🔑 LOGIN
-# ============================================================
 @router.post("/login", response_model=TokenResponse)
 async def login(request: LoginRequest, db: AsyncSession = Depends(get_db)):
     """Authenticate user and issue JWT token."""
@@ -112,7 +102,7 @@ async def login(request: LoginRequest, db: AsyncSession = Depends(get_db)):
     if not bcrypt.checkpw(request.password.encode("utf-8"), user["password"].encode("utf-8")):
         raise HTTPException(status_code=401, detail="Invalid credentials")
 
-    # ✅ Generate a new session on each login (ChatGPT style)
+   
     new_session = str(uuid.uuid4())
     await db.execute(
         text("UPDATE public.users SET last_session_id = :sid WHERE id = :uid"),
@@ -120,7 +110,7 @@ async def login(request: LoginRequest, db: AsyncSession = Depends(get_db)):
     )
     await db.commit()
 
-    # ✅ Include role + username inside JWT
+
     token = create_access_token(
         {
             "sub": user["email"],
@@ -130,18 +120,15 @@ async def login(request: LoginRequest, db: AsyncSession = Depends(get_db)):
         }
     )
 
-    logger.info(f"✅ Login success for user: {user['email']} — new session: {new_session}")
+    logger.info(f" Login success for user: {user['email']} — new session: {new_session}")
     return TokenResponse(access_token=token)
 
 
-# ============================================================
-# 👤 ME ENDPOINT
-# ============================================================
 @router.get("/me")
 async def get_me(token: str):
     """Decode token and return user info."""
     try:
-        payload = decode_access_token(token)  # ✅ use central decoder
+        payload = decode_access_token(token)  
         return {
             "email": payload.get("sub"),
             "username": payload.get("username"),

@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+
 """Initialize database tables for users, chat history, query logs, and memory"""
 
 import asyncio
@@ -9,9 +9,7 @@ from src.core.logging import get_logger
 
 logger = get_logger(__name__)
 
-# ---------------------------------------------
-# USER TABLE
-# ---------------------------------------------
+
 CREATE_USERS_TABLE = f"""
 CREATE TABLE IF NOT EXISTS {settings.SCHEMA}.users (
     id SERIAL PRIMARY KEY,
@@ -26,9 +24,7 @@ CREATE INDEX IF NOT EXISTS idx_users_email
     ON {settings.SCHEMA}.users(email);
 """
 
-# ---------------------------------------------
-# CHAT HISTORY TABLE
-# ---------------------------------------------
+
 CREATE_CHAT_HISTORY_TABLE = f"""
 CREATE TABLE IF NOT EXISTS {settings.SCHEMA}.chat_history (
     id SERIAL PRIMARY KEY,
@@ -46,9 +42,6 @@ CREATE INDEX IF NOT EXISTS idx_chat_history_created
     ON {settings.SCHEMA}.chat_history(created_at DESC);
 """
 
-# ---------------------------------------------
-# QUERY LOGS TABLE
-# ---------------------------------------------
 CREATE_QUERY_LOGS_TABLE = f"""
 CREATE TABLE IF NOT EXISTS {settings.SCHEMA}.query_logs (
     id SERIAL PRIMARY KEY,
@@ -70,9 +63,7 @@ CREATE INDEX IF NOT EXISTS idx_query_logs_created
     ON {settings.SCHEMA}.query_logs(created_at DESC);
 """
 
-# ---------------------------------------------
-# USER MEMORY TABLE (Long-Term Memory)
-# ---------------------------------------------
+
 CREATE_USER_MEMORY_TABLE = f"""
 CREATE TABLE IF NOT EXISTS {settings.SCHEMA}.user_memory (
     id SERIAL PRIMARY KEY,
@@ -82,9 +73,7 @@ CREATE TABLE IF NOT EXISTS {settings.SCHEMA}.user_memory (
 );
 """
 
-# ---------------------------------------------
-# SESSION SUMMARIES TABLE (Mid-Term Memory)
-# ---------------------------------------------
+
 CREATE_SESSION_SUMMARIES_TABLE = f"""
 CREATE TABLE IF NOT EXISTS {settings.SCHEMA}.session_summaries (
     id SERIAL PRIMARY KEY,
@@ -96,9 +85,7 @@ CREATE TABLE IF NOT EXISTS {settings.SCHEMA}.session_summaries (
 );
 """
 
-# ---------------------------------------------
-# DATABASE INITIALIZER
-# ---------------------------------------------
+
 async def init_database():
     """Create all required tables (users, memory, chat, logs)"""
     try:
